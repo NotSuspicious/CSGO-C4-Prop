@@ -32,7 +32,6 @@ int previous = HIGH;    // the previous reading from the input pin
 long time = 0;         // the last time the output pin was toggled
 long debounce = 200;   // the debounce time, increase if the output flickers
 
-int posi2glo;
 
 
 //password funtion
@@ -43,6 +42,9 @@ bool passwordEntered = false;
 int passPos = 0;
 int passPos2 = 0;
 int cursor = 10;
+
+//one time vars
+bool justEnt = false;
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -65,52 +67,44 @@ void setup() {
   pinMode(31, INPUT_PULLUP);
   pinMode(32, INPUT_PULLUP);
   pinMode(33, INPUT_PULLUP);
-  for (int i = 0 ; i < passLength ; i++) {
-    lcd.print(password[i]);
-  }
+  lcd.print("*******");
 }
 
 void loop() {
-  bool justEnt = false;
-  while (!bombExploded && !bombDefused && clickCounter <= 13) {
-    if (passPos > 6) {
-      if (!justEnt) {
-        justEnt = true;
-        lcd.setCursor(0, 0);
-        lcd.print("    *******");
-        cursor = 10;
-        lcd.clear();
-        lcd.setCursor(4, 0);
-        for (int i = 0 ; i < 7 ; i++) {
-          lcd.print("*");
-        }
-      }//one time
-      passwordEntered = true;
-    }
-    if (passwordEntered) {
-      if (!timeStart) {
-        timeStart = true;
-      }
-      timer();
-    }
-    numpad();
-  }
-  if (bombDefused) {
-    numpad();
-    lcd.setCursor(0, 0);
-    lcd.print("  Bomb Defused!");
-    lcd.setCursor(4, 1);
-    lcd.print("CTs Win!");
-    return;
-  }
-  if (bombExploded || clickCounter >= 13) {
-    numpad();
 
-    lcd.setCursor(0, 0);
-    lcd.print(" Bomb Exploded!");
-    lcd.setCursor(0, 1);
-    lcd.print(" Terrorists Win!");
+  while (!bombExploded && !bombDefused && clickCounter <= 13) {
+    numpad();
+    if (passPos > 6 && !justEnt) {
+      passwordEntered = true;
+      justEnt = true;
+      lcd.setCursor(4, 0);
+      lcd.print("*******");
+      cursor = 10;
+      startTime = millis();
+      lcd.setCursor(5, 1);
+      lcd.print("00:40");
+    }//one time
+  if (passwordEntered) {
+    timer();
   }
+}
+if (bombDefused) {
+  
+  lcd.setCursor(0, 0);
+  lcd.print("  Bomb Defused!");
+  lcd.setCursor(4, 1);
+  lcd.print("CTs Win!");
+  numpad();
+  return;
+}
+if (bombExploded || clickCounter >= 13) {
+  numpad();
+
+  lcd.setCursor(0, 0);
+  lcd.print(" Bomb Exploded!");
+  lcd.setCursor(0, 1);
+  lcd.print(" Terrorists Win!");
+}
 }
 
 
@@ -131,23 +125,19 @@ void numpad() {
   int keyVar[12] = {star, seven, four, one, zero, eight, five, two, pound, nine, six, three};
 
   for (int a = 0 ; a < 12 ; a++) {
-    if (state[a] == HIGH) {
-      if (!keyVar[a]) {
-        if (!passwordEntered) {
-          keyPressed();
-          setPass(a);
-        } else {
-          keyPressed();
-          enterPass(a);
-        }
-        if (bombDefused || bombExploded) {
-          if (key[a] == "*") {
-            resetFunc();
-          }
-        }
-        state[a] = LOW;
-      }
+    if (state[a] == HIGH && !keyVar[a]) {
+      if (!passwordEntered) {
+        setPass(a);
+        keyPressed();
 
+      } else {
+        enterPass(a);
+        keyPressed();
+      }
+      if (bombDefused && key[a] == "*" || bombExploded && key[a] == "*") {
+        resetFunc();
+      }
+      state[a] = LOW;
     }
     if (keyVar[a]) {
       state[a] = HIGH;
@@ -162,9 +152,7 @@ void keyPressed() {
 
     lcd.clear();
     lcd.setCursor(4, 0);
-    for (int i = 0 ; i < 7 ; i++) {
-      lcd.print("*");
-    }
+    lcd.print("*******");
     lcd.setCursor(cursor, 0);
     cursor--;
     for (int j = 0 ; j < passLength; j++) {
@@ -186,7 +174,6 @@ void keyPressed() {
 
 void enterPass(int posi2) {
   bool isRight = false;
-  posi2glo = posi2;
   while (!isRight) {
     if (key[posi2] != "*" && key[posi2] != "#") {
       enteredPass[passPos2] = key[posi2];
@@ -194,7 +181,7 @@ void enterPass(int posi2) {
       passPos2++;
     }
     if (key[posi2] == "*") {
-      //resetFunc();
+      resetFunc();
     }
     for (int i = 0 ; i < passLength ; i++) {
       if (password[i] == enteredPass[i]) {
@@ -220,7 +207,7 @@ void setPass(int posi) {
     passPos++;
   }
   if (key[posi] == "*") {
-    //resetFunc();
+    resetFunc();
   }
 }
 
